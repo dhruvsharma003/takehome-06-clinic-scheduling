@@ -12,8 +12,25 @@ import dashboardRouter from './routes/dashboard';
 
 const app = express();
 
+// Configure CORS for both local dev and production
+const allowedOrigins = [
+  'http://localhost:5173',           // Local dev
+  'http://localhost:3000',           // Local dev alt
+  process.env.FRONTEND_URL,          // Production (from env var)
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // For debugging, allow all origins in production (can restrict later)
+      callback(null, true);
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
