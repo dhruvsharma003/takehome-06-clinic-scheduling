@@ -4,18 +4,9 @@ Clinic Scheduling System — a full-stack appointment management platform.
 
 ## Links
 
-- **GitHub repository:** Push this repository to GitHub and update this URL
-- **Live application:** Runs locally at http://localhost:5173 (see Running Locally below)
+- **GitHub repository:** https://github.com/dhruvsharma003/takehome-06-clinic-scheduling/tree/master
+- **Live application:** (https://takehome-06-clinic-scheduling-6iyq.vercel.app)
 
-## Notes for the reviewer
-
-This application runs entirely locally with Node.js v24 (built-in `node:sqlite`). No external dependencies or deployment required to test. Simply:
-1. `cd backend && npm install && npm run seed`
-2. `npm run dev`
-3. `cd frontend && npm install && npm run dev`
-4. Open http://localhost:5173 and log in with any demo credential below.
-
-For production deployment, see the deployment notes at the bottom.
 
 ## Demo credentials
 
