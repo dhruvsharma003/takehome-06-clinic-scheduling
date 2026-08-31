@@ -96,13 +96,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_care_team_provider ON care_team(provider_id);
 `);
 
-// Auto-seed database if empty (for Render free tier without Shell access)
-const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-if (userCount.count === 0) {
-  console.log('Database is empty, auto-seeding...');
-  seedDatabase();
-}
-
 // Wrap node:sqlite to provide a compatible synchronous API
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SQLValue = null | string | number | bigint | Uint8Array;
@@ -141,13 +134,20 @@ const dbWrapper: DBWrapper = {
   },
 };
 
+// Auto-seed database if empty (for Render free tier without Shell access)
+const userCount = dbWrapper.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+if (!userCount || userCount.count === 0) {
+  console.log('Database is empty, auto-seeding...');
+  seedDatabase(dbWrapper);
+}
+
 // Auto-seeding function
-function seedDatabase(): void {
+function seedDatabase(db: DBWrapper): void {
   const { v4: uuidv4 } = require('uuid');
   const bcrypt = require('bcryptjs');
 
   // Clear existing data
-  dbWrapper.exec(`
+  db.exec(`
     DELETE FROM audit_log;
     DELETE FROM alerts;
     DELETE FROM visit_notes;
@@ -166,19 +166,19 @@ function seedDatabase(): void {
 
   const hash = (pw: string) => bcrypt.hashSync(pw, 10);
 
-  dbWrapper.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
     frontDeskId, 'frontdesk@clinic.com', hash('frontdesk123'), 'Alex Johnson', 'front_desk'
   );
-  dbWrapper.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
     fd2Id, 'frontdesk2@clinic.com', hash('frontdesk123'), 'Sam Rivera', 'front_desk'
   );
-  dbWrapper.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
     provider1Id, 'dr.chen@clinic.com', hash('provider123'), 'Dr. Lisa Chen', 'provider'
   );
-  dbWrapper.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
     provider2Id, 'dr.patel@clinic.com', hash('provider123'), 'Dr. Raj Patel', 'provider'
   );
-  dbWrapper.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(
     provider3Id, 'dr.morgan@clinic.com', hash('provider123'), 'Dr. Taylor Morgan', 'provider'
   );
 
@@ -210,7 +210,7 @@ function seedDatabase(): void {
   ];
 
   slotData.forEach(({ providerId, date, time, duration }) => {
-    dbWrapper.prepare(`
+    db.prepare(`
       INSERT INTO slots (id, provider_id, date, start_time, duration_minutes, created_by)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(uuidv4(), providerId, date, time, duration, frontDeskId);

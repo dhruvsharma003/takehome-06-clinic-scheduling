@@ -115,4 +115,75 @@ const dbWrapper = {
         db.exec(sql);
     },
 };
+// Auto-seed database if empty (for Render free tier without Shell access)
+const userCount = dbWrapper.prepare('SELECT COUNT(*) as count FROM users').get();
+if (!userCount || userCount.count === 0) {
+    console.log('Database is empty, auto-seeding...');
+    seedDatabase(dbWrapper);
+}
+// Auto-seeding function
+function seedDatabase(db) {
+    const { v4: uuidv4 } = require('uuid');
+    const bcrypt = require('bcryptjs');
+    // Clear existing data
+    db.exec(`
+    DELETE FROM audit_log;
+    DELETE FROM alerts;
+    DELETE FROM visit_notes;
+    DELETE FROM care_team;
+    DELETE FROM appointments;
+    DELETE FROM slots;
+    DELETE FROM users;
+  `);
+    // Users
+    const frontDeskId = uuidv4();
+    const fd2Id = uuidv4();
+    const provider1Id = uuidv4();
+    const provider2Id = uuidv4();
+    const provider3Id = uuidv4();
+    const hash = (pw) => bcrypt.hashSync(pw, 10);
+    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(frontDeskId, 'frontdesk@clinic.com', hash('frontdesk123'), 'Alex Johnson', 'front_desk');
+    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(fd2Id, 'frontdesk2@clinic.com', hash('frontdesk123'), 'Sam Rivera', 'front_desk');
+    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(provider1Id, 'dr.chen@clinic.com', hash('provider123'), 'Dr. Lisa Chen', 'provider');
+    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(provider2Id, 'dr.patel@clinic.com', hash('provider123'), 'Dr. Raj Patel', 'provider');
+    db.prepare('INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)').run(provider3Id, 'dr.morgan@clinic.com', hash('provider123'), 'Dr. Taylor Morgan', 'provider');
+    // Helper to get date offset from today
+    function dateOffset(days) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
+    }
+    // Create slots across multiple days
+    const slotData = [
+        // Today
+        { providerId: provider1Id, date: dateOffset(0), time: '09:00', duration: 30 },
+        { providerId: provider1Id, date: dateOffset(0), time: '09:30', duration: 30 },
+        { providerId: provider1Id, date: dateOffset(0), time: '10:00', duration: 45 },
+        { providerId: provider1Id, date: dateOffset(0), time: '11:00', duration: 30 },
+        { providerId: provider1Id, date: dateOffset(0), time: '14:00', duration: 60 },
+        { providerId: provider2Id, date: dateOffset(0), time: '08:30', duration: 30 },
+        { providerId: provider2Id, date: dateOffset(0), time: '09:00', duration: 30 },
+        { providerId: provider2Id, date: dateOffset(0), time: '10:00', duration: 45 },
+        // Tomorrow
+        { providerId: provider1Id, date: dateOffset(1), time: '09:00', duration: 45 },
+        { providerId: provider3Id, date: dateOffset(1), time: '13:00', duration: 30 },
+        { providerId: provider2Id, date: dateOffset(1), time: '10:00', duration: 60 },
+        // Day after
+        { providerId: provider1Id, date: dateOffset(2), time: '14:00', duration: 30 },
+        { providerId: provider3Id, date: dateOffset(2), time: '09:00', duration: 45 },
+    ];
+    slotData.forEach(({ providerId, date, time, duration }) => {
+        db.prepare(`
+      INSERT INTO slots (id, provider_id, date, start_time, duration_minutes, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), providerId, date, time, duration, frontDeskId);
+    });
+    console.log('✅ Database seeded successfully!');
+    console.log('\nDemo credentials:');
+    console.log('  Front-desk: frontdesk@clinic.com / frontdesk123');
+    console.log('  Front-desk: frontdesk2@clinic.com / frontdesk123');
+    console.log('  Provider:   dr.chen@clinic.com / provider123');
+    console.log('  Provider:   dr.patel@clinic.com / provider123');
+    console.log('  Provider:   dr.morgan@clinic.com / provider123');
+}
 exports.default = dbWrapper;
